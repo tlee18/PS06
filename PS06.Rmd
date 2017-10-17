@@ -1,6 +1,6 @@
 ---
 title: "STAT/MATH 495: Problem Set 06"
-author: "WRITE YOUR NAME HERE"
+author: "Tim Lee"
 date: "2017-10-17"
 output:
   html_document:
@@ -17,6 +17,8 @@ knitr::opts_chunk$set(
   echo = TRUE, fig.width=8, fig.height=4.5, message=FALSE, warning = FALSE
   )
 set.seed(76)
+options(digits = 4)
+options(scipen=999)
 
 # Load packages
 library(tidyverse)
@@ -30,7 +32,7 @@ library(knitr)
 
 # Collaboration
 
-Please indicate who you collaborated with on this assignment: 
+Please indicate who you collaborated with on this assignment: Leonard Yoon, Jonathan Che
 
 
 
@@ -96,8 +98,47 @@ n_sample <- 10000
 # Computation
 
 ```{r}
+calculateModel <- function(df) {
+  MSElist <- c()
+  biasSquaredList <- c()
+  varianceList <- c()
+
+for(i in 1:n_sample){
+    data <- generate_sample(f, n, sigma)
+    model <- smooth.spline(x = data$x, y = data$y, df = df)   
+    predictedY <- predict(model, test_set$x)$y
+    
+    # MSE
+    error <- (f(test_set$x) + rnorm(1, 0, sigma)) - predictedY 
+    
+    # Bias Squared: this is actually the Bias Squared
+    biasSquared <- (f(test_set$x) - predictedY)
+    
+    #Variance
+    variance <- predictedY
+  
+    MSElist <- c(MSElist, error)
+    biasSquaredList <- c(biasSquaredList, biasSquared) 
+    varianceList <- c(varianceList, variance)
+  }
+
+  MSE = mean(MSElist^2)
+  Bias_Squared = (mean(biasSquaredList))^2
+  Variance = var(varianceList)
+  Irreducible = sigma^2
+  Sum = Bias_Squared + Variance + Irreducible
+  
+modelList <- list(MSE = MSE, Bias_Squared = Bias_Squared, Variance = Variance, Irreducible = Irreducible, Sum = Sum)
+return(modelList)
+}
+
+linearModel <- calculateModel(df = 2)
+splinesModel <- calculateModel(df = 99)
 
 ```
+
+
+
 
 
 # Tables
@@ -115,7 +156,19 @@ output tables comparing:
 
 where `sum = bias_squared + var + irreducible`. You can created cleanly formatted tables like the one above by piping a data frame into `knitr::kable(digits=4)`.
 
+```{r, echo = FALSE}
 
+#save(linearModel, file = "linearModel.RData")
+#save(splinesModel, file = "splinesModel.RData")
+
+#load("linearModel.RData")
+#load("splinesModel.RData")
+
+modelTable <- rbind(linearModel, splinesModel)
+rownames(modelTable) <- c("Linear Regression", "Smooth Splines (df = 99)")
+modelTable %>% knitr::kable(digits=4)
+
+```
 
 
 # Analysis
@@ -123,14 +176,18 @@ where `sum = bias_squared + var + irreducible`. You can created cleanly formatte
 **Questions**:
 
 1. Based on the topics covered in Lec 2.7, name one possible "sanity check" for your results. Name another if you can.
-1. In **two** sentences or less, give a rough sketch of what the procedure would
+2. In **two** sentences or less, give a rough sketch of what the procedure would
 be to get the breakdown of $$\mbox{MSE}\left[\widehat{f}(x)\right]$$ for *all*
 $x$ in this example, and not just for $$\mbox{MSE}\left[\widehat{f}(x_0)\right]
 = \mbox{MSE}\left[\widehat{f}(0.95)\right]$$.
-1. Which of the two models would you choose for predicting the point of interest and why?
+3. Which of the two models would you choose for predicting the point of interest and why?
 
 **Answers**:
 
-1.
-1.
-1.
+1. One sanity check is to compare the Bias_Squared and Variance to see if there is relative difference between the two. Squared bias should be higher for the linear regression model because it is simpler than the smooth splines (df = 99) model. However, variance should be higher for the more complex smooth splines model (df = 99) than the linear one (df = 2). In addition, another sanity check is that MSE is the sum of the squared bias, variance, and irreducible error. Based on the chart, the sum value is very similar to the MSE. The small differences are due to the number of times we simulated the model. 
+
+
+2. I'd change the `test_set` to include all values of x instead of just `x_0`. When I run through the simulation, I would predict the result for all the points and calculate the components of MSE similarly as I did before. 
+
+
+3. I would pick the linear model (df = 2). As discussed in class, simpler is usually better. Furthermore, the MSE looks slightly smaller though it may not be significantly smaller. Nevertheless, the results are going to be consistent for the linear model. If there is bias, it can be corrected later on with a bias correction technique. This makes choosing the higher bias linear model as being easier to use. Variance, on the other hand, is difficult to correct because the data will naturally have random patterns where there's no "variance correction" that can fix it. 
